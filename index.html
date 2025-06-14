@@ -8,6 +8,7 @@
   <meta name="theme-color" content="#4CAF50">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: Arial, sans-serif; background: #f2f2f2; padding: 20px; }
     h1 { text-align: center; }
@@ -19,6 +20,7 @@
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
     th { background: #eee; }
+    canvas { margin-top: 30px; }
   </style>
 </head>
 <body>
@@ -36,6 +38,7 @@
 
     <button onclick="updateTracker()">Update</button>
     <button class="reset" onclick="resetTracker()">Reset</button>
+    <button onclick="exportToCSV()">Download Excel</button>
 
     <table>
       <thead>
@@ -51,6 +54,8 @@
       </thead>
       <tbody id="history"></tbody>
     </table>
+
+    <canvas id="capitalChart" height="100"></canvas>
   </div>
 
   <script>
@@ -65,6 +70,31 @@
     const historyData = JSON.parse(localStorage.getItem("history")) || [];
     const historyEl = document.getElementById("history");
     const capitalEl = document.getElementById("capital");
+    let chart;
+
+    function renderChart() {
+      const labels = historyData.map(entry => `Day ${entry.day}`);
+      const data = historyData.map(entry => parseFloat(entry.end));
+      const ctx = document.getElementById('capitalChart').getContext('2d');
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Capital Growth ($)',
+            data: data,
+            fill: false,
+            borderColor: '#4CAF50',
+            tension: 0.2
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: { y: { beginAtZero: false } }
+        }
+      });
+    }
 
     function renderHistory() {
       historyEl.innerHTML = "";
@@ -80,6 +110,7 @@
         </tr>`;
         historyEl.innerHTML += row;
       });
+      renderChart();
     }
 
     function updateTracker() {
@@ -121,6 +152,23 @@
       renderHistory();
       document.getElementById("profit").value = '';
       document.getElementById("loss").value = '';
+    }
+
+    function exportToCSV() {
+      const rows = [
+        ["Day","Start","Profit","Loss","End","Target 20%","Max Loss 10%"]
+      ];
+      historyData.forEach(entry => {
+        rows.push([entry.day, entry.start, entry.profit, entry.loss, entry.end, entry.target, entry.maxLoss]);
+      });
+      let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "trading_tracker.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
 
     capitalEl.value = capital.toFixed(2);
