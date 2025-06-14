@@ -3,27 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LakshyaWealth</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <title>Trading Growth Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4CAF50">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
     body { font-family: Arial, sans-serif; background: #f2f2f2; padding: 20px; }
     h1 { text-align: center; }
-    .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
     label { display: block; margin-top: 10px; }
     input[type=number] { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; }
     button { padding: 10px 15px; margin-right: 10px; border: none; background: #4CAF50; color: white; cursor: pointer; border-radius: 5px; }
     button.reset { background: #f44336; }
-    button.export { background: #2196F3; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
     th { background: #eee; }
-    #chart-container { margin-top: 40px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>LakshyaWealth</h1>
+    <h1>Trading Profit & Loss Tracker</h1>
 
     <label>Current Capital ($)</label>
     <input type="number" id="capital" value="10" readonly>
@@ -34,17 +34,10 @@
     <label>Daily Loss ($)</label>
     <input type="number" id="loss" step="0.01">
 
-    <label>Target %</label>
-    <input type="number" id="targetPercent" value="20" step="0.01">
-
-    <label>Max Loss %</label>
-    <input type="number" id="maxLossPercent" value="10" step="0.01">
-
     <button onclick="updateTracker()">Update</button>
     <button class="reset" onclick="resetTracker()">Reset</button>
-    <button class="export" onclick="exportToExcel()">Export to Excel</button>
 
-    <table id="dataTable">
+    <table>
       <thead>
         <tr>
           <th>Day</th>
@@ -52,51 +45,29 @@
           <th>Profit ($)</th>
           <th>Loss ($)</th>
           <th>End ($)</th>
-          <th>Target ($)</th>
-          <th>Max Loss ($)</th>
+          <th>Target 20% ($)</th>
+          <th>Max Loss 10% ($)</th>
         </tr>
       </thead>
       <tbody id="history"></tbody>
     </table>
-
-    <div id="chart-container">
-      <canvas id="capitalChart" width="400" height="200"></canvas>
-    </div>
   </div>
 
   <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log('Service Worker registered'))
+        .catch(err => console.error('Service Worker registration failed:', err));
+    }
+
     let capital = parseFloat(localStorage.getItem("capital")) || 10;
     let day = parseInt(localStorage.getItem("day")) || 0;
     const historyData = JSON.parse(localStorage.getItem("history")) || [];
     const historyEl = document.getElementById("history");
     const capitalEl = document.getElementById("capital");
-    const targetEl = document.getElementById("targetPercent");
-    const lossEl = document.getElementById("maxLossPercent");
-
-    const ctx = document.getElementById("capitalChart").getContext("2d");
-    const chartData = {
-      labels: historyData.map(e => `Day ${e.day}`),
-      datasets: [{
-        label: 'Capital ($)',
-        backgroundColor: '#4CAF50',
-        borderColor: '#388E3C',
-        data: historyData.map(e => parseFloat(e.end)),
-        fill: false,
-        tension: 0.2
-      }]
-    };
-
-    const capitalChart = new Chart(ctx, {
-      type: 'line',
-      data: chartData,
-      options: { responsive: true, plugins: { legend: { display: true } } }
-    });
 
     function renderHistory() {
       historyEl.innerHTML = "";
-      chartData.labels = [];
-      chartData.datasets[0].data = [];
-
       historyData.forEach(entry => {
         const row = `<tr>
           <td>${entry.day}</td>
@@ -108,21 +79,16 @@
           <td>${entry.maxLoss}</td>
         </tr>`;
         historyEl.innerHTML += row;
-        chartData.labels.push(`Day ${entry.day}`);
-        chartData.datasets[0].data.push(parseFloat(entry.end));
       });
-      capitalChart.update();
     }
 
     function updateTracker() {
       const profit = parseFloat(document.getElementById("profit").value) || 0;
       const loss = parseFloat(document.getElementById("loss").value) || 0;
-      const targetPercent = parseFloat(targetEl.value) || 20;
-      const maxLossPercent = parseFloat(lossEl.value) || 10;
       const start = capital;
       capital = capital + profit - loss;
-      const target = (start * (targetPercent / 100)).toFixed(2);
-      const maxLoss = (start * (maxLossPercent / 100)).toFixed(2);
+      const target = (start * 0.2).toFixed(2);
+      const maxLoss = (start * 0.1).toFixed(2);
       day++;
 
       const entry = {
@@ -155,13 +121,6 @@
       renderHistory();
       document.getElementById("profit").value = '';
       document.getElementById("loss").value = '';
-    }
-
-    function exportToExcel() {
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.table_to_sheet(document.getElementById('dataTable'));
-      XLSX.utils.book_append_sheet(wb, ws, "Trades");
-      XLSX.writeFile(wb, 'TradingHistory.xlsx');
     }
 
     capitalEl.value = capital.toFixed(2);
